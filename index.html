@@ -942,7 +942,8 @@
                 let y = Math.sin(bRad) * Math.cos(gRad);
                 let rollRad = Math.atan2(x, y);
                 
-                let angle = Math.abs(rollRad * 180 / Math.PI);
+                let angle =  Math.abs(event.gamma || 0);
+                // Math.abs(rollRad * 180 / Math.PI);
                 if (angle > 90) angle = 180 - angle;
                 
                 // 【修正箇所】立てた状態(Portrait)=90度、真横に倒した状態(Landscape)=0度に反転
