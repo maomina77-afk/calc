@@ -174,8 +174,8 @@
 
             <div id="sensorDisplay" style="display: none; background: #1a3c34; border: 2px solid #00e676; border-radius: 6px; padding: 10px; margin-bottom: 8px;">
                 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="color: #00e676; font-size: 0.95rem; font-weight:bold;">📱 スマホを傾けて計測中</div>
-                    <button id="btnAxisToggle" onclick="toggleMeasureAxis()" style="background:#0288d1; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:0.9rem; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">↕️ 前後(縦)で計測</button>
+                    <div id="measureModeLabel" style="color: #00e676; font-size: 0.95rem; font-weight:bold;">📱 [前後モード] 計測中</div>
+                    <button id="btnAxisToggle" onclick="toggleMeasureAxis()" style="background:#0288d1; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:0.9rem; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">↔️ 左右に切替</button>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 1.1rem;">
                     <div>度: <span id="sensDeg" style="color:#fff; font-weight:bold;">0.00</span>°</div>
@@ -377,7 +377,9 @@
         // 角度計測用変数
         let isMeasuring = false;
         let currentMeasuredAngleDeg = 0;
-        let measureAxis = 'pitch'; // 'pitch': 前後(beta), 'roll': 左右(gamma)
+        let measureAxis = 'pitch'; // 'pitch': 前後, 'roll': 左右
+        let sensorEventFired = false;
+        let sensorCheckTimeout = null;
 
         window.onload = function() {
             loadAllFromLocalStorage();
@@ -477,7 +479,6 @@
         }
 
         function switchTab(tabId, isFromTargetBtn = false, isInit = false) {
-            // 計測中に別タブに移動した場合は強制終了
             if (isMeasuring && tabId !== 'triangle') {
                 stopMeasurement();
             }
@@ -542,7 +543,6 @@
                 else { el.readOnly = true; el.value = ""; }
             });
             
-            // 角度入力不可モードで計測中なら強制ストップ
             if (isMeasuring && !activeFields.includes('angle')) {
                 stopMeasurement();
             }
@@ -561,7 +561,7 @@
             if (['ba', 'ha', 'hy_a'].includes(mode) && !isNaN(a)) {
                 if (aType === 'deg') rad = a * (Math.PI / 180);
                 if (aType === 'pct') rad = Math.atan(a / 100);
-                if (aType === 'wari') rad = Math.atan(1 / a);
+                if (aType === 'wari') rad = (a === 0) ? Math.PI / 2 : Math.atan(1 / a);
             }
 
             if (mode === 'bh' && !isNaN(b) && !isNaN(h)) { hy = Math.hypot(b, h); rad = Math.atan2(h, b); }
@@ -574,14 +574,20 @@
 
             let deg = rad * (180 / Math.PI);
             let pct = Math.tan(rad) * 100;
-            let wari = b / h;
+            let wari = (h === 0) ? 999.9 : b / h;
 
             let wariText = "";
-            let wariInt = Math.floor(wari);
-            let buInt = Math.floor(Math.round((wari - wariInt) * 100) / 10);
-            if (wariInt > 0) wariText += wariInt + "割";
-            if (buInt > 0) wariText += buInt + "分";
-            if (wariText === "") wariText = "0割";
+            if (h === 0 || wari > 99) {
+                wariText = "水平";
+            } else if (deg >= 89.9) {
+                wariText = "0割";
+            } else {
+                let wariInt = Math.floor(wari);
+                let buInt = Math.floor(Math.round((wari - wariInt) * 100) / 10);
+                if (wariInt > 0) wariText += wariInt + "割";
+                if (buInt > 0) wariText += buInt + "分";
+                if (wariText === "") wariText = "0割";
+            }
 
             document.getElementById('base').value = b.toFixed(4);
             document.getElementById('height').value = h.toFixed(4);
@@ -593,10 +599,10 @@
                 document.getElementById('angle').value = deg.toFixed(4);
                 historyAngleStr = `${deg.toFixed(2)}度 (${toDMS(deg)})`;
             } else if (aType === 'pct') {
-                document.getElementById('angle').value = pct.toFixed(4);
-                historyAngleStr = `${pct.toFixed(2)}％`;
+                document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4);
+                historyAngleStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(2)}％`;
             } else if (aType === 'wari') {
-                document.getElementById('angle').value = wari.toFixed(4);
+                document.getElementById('angle').value = (deg >= 89.9) ? "0.0000" : wari.toFixed(4);
                 historyAngleStr = `${wari.toFixed(4)} (${wariText})`;
             }
 
@@ -837,30 +843,40 @@
                     })
                     .catch(e => {
                         console.error(e);
-                        startMeasurement(); // Fallback
+                        startMeasurement(); 
                     });
             } else {
-                startMeasurement(); // Android等
+                startMeasurement(); 
             }
         }
 
         function toggleMeasureAxis() {
             playBeepAndVibrate();
             let btn = document.getElementById('btnAxisToggle');
+            let label = document.getElementById('measureModeLabel');
+            
             if (measureAxis === 'pitch') {
                 measureAxis = 'roll';
-                btn.innerText = '↔️ 左右(横)で計測';
+                label.innerText = '📱 [左右(横)モード] 計測中';
+                btn.innerText = '↕️ 前後に切替';
             } else {
                 measureAxis = 'pitch';
-                btn.innerText = '↕️ 前後(縦)で計測';
+                label.innerText = '📱 [前後(縦)モード] 計測中';
+                btn.innerText = '↔️ 左右に切替';
             }
-            // 軸を切り替えたら即座に表示をリセット（0表示）にして次の入力を待つ
             currentMeasuredAngleDeg = 0;
             updateSensorDisplay(0);
         }
 
         function startMeasurement() {
             isMeasuring = true;
+            sensorEventFired = false;
+            
+            // 計測開始時にUI状態をリセット・同期
+            measureAxis = 'pitch';
+            document.getElementById('measureModeLabel').innerText = '📱 [前後(縦)モード] 計測中';
+            document.getElementById('btnAxisToggle').innerText = '↔️ 左右に切替';
+
             window.addEventListener('deviceorientation', handleOrientation);
             
             document.getElementById('sensorDisplay').style.display = 'block';
@@ -873,10 +889,19 @@
             calcBtn.innerText = '角度を確定して計算';
             calcBtn.classList.add('btn-confirm');
             calcBtn.onclick = confirmMeasuredAngle;
+
+            sensorCheckTimeout = setTimeout(() => {
+                if (!sensorEventFired) {
+                    document.getElementById('sensDeg').innerText = "---";
+                    document.getElementById('sensDms').innerText = "センサー応答なし";
+                    showModal("センサーが応答しません。\nローカルファイル(file://)として開いているか、HTTPS環境でないためブラウザにブロックされています。\nWebサーバー(https://)にアップロードしてご利用ください。");
+                }
+            }, 1000);
         }
 
         function stopMeasurement() {
             isMeasuring = false;
+            if (sensorCheckTimeout) clearTimeout(sensorCheckTimeout);
             window.removeEventListener('deviceorientation', handleOrientation);
             
             document.getElementById('sensorDisplay').style.display = 'none';
@@ -893,19 +918,40 @@
 
         function handleOrientation(event) {
             if (!isMeasuring) return;
+            sensorEventFired = true; 
             
+            if (event.beta === null && event.gamma === null) {
+                document.getElementById('sensDeg').innerText = "---";
+                document.getElementById('sensDms').innerText = "セキュリティ制限";
+                return;
+            }
+
             let theta = 0;
             if (measureAxis === 'pitch') {
-                // beta: 前後の傾き (-180〜180)
+                // 前後モード
                 let b = Math.abs(event.beta || 0);
-                if (b > 90) b = 180 - b; // 90度を超えたら折り返す
+                if (b > 90) b = 180 - b; 
+                // この時点で 立てた状態(Portrait)=90, 真横(平置き)=0 になっています
                 theta = b;
             } else {
-                // gamma: 左右の傾き (-90〜90)
-                let g = Math.abs(event.gamma || 0);
-                if (g > 90) g = 180 - g;
-                theta = g;
+                // 左右モード
+                let bRad = (event.beta || 0) * Math.PI / 180;
+                let gRad = (event.gamma || 0) * Math.PI / 180;
+                
+                let x = Math.sin(gRad);
+                let y = Math.sin(bRad) * Math.cos(gRad);
+                let rollRad = Math.atan2(x, y);
+                
+                let angle = Math.abs(rollRad * 180 / Math.PI);
+                if (angle > 90) angle = 180 - angle;
+                
+                // 【修正箇所】立てた状態(Portrait)=90度、真横に倒した状態(Landscape)=0度に反転
+                theta = 90 - angle;
             }
+            
+            // 安全装置（エラー・マイナス値回避）
+            if (theta > 89.9) theta = 90;
+            if (theta < 0) theta = 0;
             
             currentMeasuredAngleDeg = theta;
             updateSensorDisplay(theta);
@@ -915,6 +961,12 @@
             document.getElementById('sensDeg').innerText = theta.toFixed(2);
             document.getElementById('sensDms').innerText = toDMS(theta);
             
+            if (theta >= 89.9) {
+                document.getElementById('sensPct').innerText = "∞";
+                document.getElementById('sensWari').innerText = "0.000 (0割)";
+                return;
+            }
+            
             let pct = Math.tan(theta * Math.PI / 180) * 100;
             document.getElementById('sensPct').innerText = pct.toFixed(2);
             
@@ -922,6 +974,8 @@
                 document.getElementById('sensWari').innerText = "水平";
             } else {
                 let wari = 1 / Math.tan(theta * Math.PI / 180);
+                wari = Math.abs(wari); 
+                
                 let wariInt = Math.floor(wari);
                 let buInt = Math.floor(Math.round((wari - wariInt) * 100) / 10);
                 let wariText = "";
@@ -937,16 +991,25 @@
             let aType = document.getElementById('angleType').value;
             let finalValue = 0;
             
-            if (aType === 'deg') {
-                finalValue = currentMeasuredAngleDeg;
-            } else if (aType === 'pct') {
-                finalValue = Math.tan(currentMeasuredAngleDeg * Math.PI / 180) * 100;
-            } else if (aType === 'wari') {
-                if (currentMeasuredAngleDeg < 0.1) {
-                    showModal("角度が小さすぎる（水平に近い）ため、「割」では計算できません。");
+            if (currentMeasuredAngleDeg >= 89.9) {
+                if (aType === 'deg') finalValue = 90;
+                else if (aType === 'pct') {
+                    showModal("角度が垂直に近すぎるため、「％」では入力できません。");
                     return;
                 }
-                finalValue = 1 / Math.tan(currentMeasuredAngleDeg * Math.PI / 180);
+                else if (aType === 'wari') finalValue = 0;
+            } else {
+                if (aType === 'deg') {
+                    finalValue = currentMeasuredAngleDeg;
+                } else if (aType === 'pct') {
+                    finalValue = Math.tan(currentMeasuredAngleDeg * Math.PI / 180) * 100;
+                } else if (aType === 'wari') {
+                    if (currentMeasuredAngleDeg < 0.1) {
+                        showModal("角度が小さすぎる（水平に近い）ため、「割」では計算できません。");
+                        return;
+                    }
+                    finalValue = 1 / Math.tan(currentMeasuredAngleDeg * Math.PI / 180);
+                }
             }
             
             document.getElementById('angle').value = finalValue.toFixed(4);
