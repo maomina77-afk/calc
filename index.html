@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>現場用・土木測量電卓 ULTRA (完全版)</title>
+    <title>計算ツール V1.02</title>
     <style>
         /* 屋外視認性を極限まで高めたハイコントラスト・ダークテーマ */
         body {
@@ -347,7 +347,7 @@
     </div>
 
     <div class="bottom-bar">
-        <span style="color:#ffeb3b; font-weight:bold; font-size:1.2rem;">計算ツール </span>
+        <span style="color:#ffeb3b; font-weight:bold; font-size:1.2rem;">計算ツール V1.02</span>
         <label style="display:inline; color:#fff; font-size:1.1rem; cursor:pointer;">
             <input type="checkbox" id="soundToggle" checked onchange="saveAllToLocalStorage()" style="transform: scale(1.3); vertical-align:middle; margin-right: 5px;"> 🔊 音＆バイブ
         </label>
@@ -874,8 +874,8 @@
             
             // 計測開始時にUI状態をリセット・同期（デフォルトは前後モード）
             measureAxis = 'pitch';
-            document.getElementById('measureModeLabel').innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
-            document.getElementById('btnAxisToggle').innerText = '🔄 左右(横)モードに切替';
+            document.getElementById('measureModeLabel').innerHTML = '現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
+            document.getElementById('btnAxisToggle').innerText = '🔄 左右(横)モード切替';
 
             window.addEventListener('deviceorientation', handleOrientation);
             
@@ -886,7 +886,7 @@
             btnMeasure.classList.add('active');
 
             let calcBtn = document.getElementById('btnTriangleCalc');
-            calcBtn.innerText = '角度を確定して計算';
+            calcBtn.innerText = '角度確定し計算';
             calcBtn.classList.add('btn-confirm');
             calcBtn.onclick = confirmMeasuredAngle;
 
