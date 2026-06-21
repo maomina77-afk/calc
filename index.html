@@ -936,7 +936,7 @@
                 theta = b;
             } else {
                 // 左右(横)モード：gammaの絶対値
-                let g = Math.abs(90 - event.gamma || 0);
+                let g = Math.abs(event.gamma || 0);
                 if (g > 90) g = 180 - g; // 念のための補正
                 theta = g;
             }
