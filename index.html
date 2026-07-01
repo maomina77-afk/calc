@@ -376,7 +376,7 @@
         
         // 角度計測用変数
         let isMeasuring = false;
-        let yawOffset = 0; // 追加
+        let yawOffset = null; // nullで初期化
         let currentMeasuredAngleDeg = 0;
         let measureAxis = 'pitch'; // 'pitch': 前後(縦), 'roll': 左右(横)
         let sensorEventFired = false;
@@ -856,17 +856,17 @@ function toggleMeasureAxis() {
             let btn = document.getElementById('btnAxisToggle');
             let label = document.getElementById('measureModeLabel');
             
+            // モード切替時にオフセットを一旦リセット
+            yawOffset = null; 
+            
             if (measureAxis === 'pitch') {
                 measureAxis = 'roll';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">左右(横)</b> 傾き';
                 btn.innerText = '🔄 回転(水平)モードに切替';
             } else if (measureAxis === 'roll') {
                 measureAxis = 'yaw';
-                // ★ここを修正：回転モードへ入る瞬間の角度をオフセットとして記録
-                yawOffset = window.event && window.event.alpha ? window.event.alpha : 0;
-                
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">回転(水平)</b> 向き';
-                btn.innerText = '🔄 前後(縦)モードに切替';
+                btn.innerText = '🔄 前部(縦)モードに切替';
             } else {
                 measureAxis = 'pitch';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
@@ -944,14 +944,22 @@ function startMeasurement() {
                 let g = Math.abs(event.gamma || 0);
                 if (g > 90) g = 180 - g; 
                 theta = g;
-          } else if (measureAxis === 'yaw') {
-                // 現在の値からオフセットを引く
-                let rawAlpha = event.alpha || 0;
-                let a = Math.abs(rawAlpha - yawOffset);
+               } else if (measureAxis === 'yaw') {
+                // 初回だけオフセットを記録
+                if (yawOffset === null) {
+                    yawOffset = event.alpha || 0;
+                }
                 
-                // 差分が180度を超えた場合の補正と、0-90度へのマッピング
-                a = a % 180;
+                // 現在のalphaと基準(yawOffset)の差分をとる
+                let diff = (event.alpha || 0) - yawOffset;
+                
+                // 差分がマイナスになった場合などを考慮して360度ループで正規化
+                if (diff < 0) diff += 360;
+                
+                // 他のモードと同様に0-90度へ折り返す
+                let a = Math.abs(diff % 180);
                 if (a > 90) a = 180 - a;
+                
                 theta = a;
             }
             
