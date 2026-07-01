@@ -376,6 +376,7 @@
         
         // 角度計測用変数
         let isMeasuring = false;
+        let yawOffset = 0; // 追加
         let currentMeasuredAngleDeg = 0;
         let measureAxis = 'pitch'; // 'pitch': 前後(縦), 'roll': 左右(横)
         let sensorEventFired = false;
@@ -856,17 +857,17 @@ function toggleMeasureAxis() {
             let label = document.getElementById('measureModeLabel');
             
             if (measureAxis === 'pitch') {
-                // 前後 → 左右へ
                 measureAxis = 'roll';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">左右(横)</b> 傾き';
                 btn.innerText = '🔄 回転(水平)モードに切替';
             } else if (measureAxis === 'roll') {
-                // 左右 → 回転へ
                 measureAxis = 'yaw';
+                // ★ここを修正：回転モードへ入る瞬間の角度をオフセットとして記録
+                yawOffset = window.event && window.event.alpha ? window.event.alpha : 0;
+                
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">回転(水平)</b> 向き';
                 btn.innerText = '🔄 前後(縦)モードに切替';
             } else {
-                // 回転 → 前後へ
                 measureAxis = 'pitch';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
                 btn.innerText = '🔄 左右(横)モードに切替';
@@ -943,10 +944,12 @@ function startMeasurement() {
                 let g = Math.abs(event.gamma || 0);
                 if (g > 90) g = 180 - g; 
                 theta = g;
-            } else if (measureAxis === 'yaw') {
-                // 回転(水平・Z軸)モード：alphaの絶対値
-                let a = Math.abs(event.alpha || 0);
-                // 0〜360度を他のモードと同じように0〜90度に折り返す
+          } else if (measureAxis === 'yaw') {
+                // 現在の値からオフセットを引く
+                let rawAlpha = event.alpha || 0;
+                let a = Math.abs(rawAlpha - yawOffset);
+                
+                // 差分が180度を超えた場合の補正と、0-90度へのマッピング
                 a = a % 180;
                 if (a > 90) a = 180 - a;
                 theta = a;
