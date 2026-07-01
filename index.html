@@ -850,16 +850,23 @@
             }
         }
 
-        function toggleMeasureAxis() {
+function toggleMeasureAxis() {
             playBeepAndVibrate();
             let btn = document.getElementById('btnAxisToggle');
             let label = document.getElementById('measureModeLabel');
             
             if (measureAxis === 'pitch') {
+                // 前後 → 左右へ
                 measureAxis = 'roll';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">左右(横)</b> 傾き';
-                btn.innerText = '🔄 前後(縦)モード切替';
+                btn.innerText = '🔄 回転(水平)モードに切替';
+            } else if (measureAxis === 'roll') {
+                // 左右 → 回転へ
+                measureAxis = 'yaw';
+                label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">回転(水平)</b> 向き';
+                btn.innerText = '🔄 前後(縦)モードに切替';
             } else {
+                // 回転 → 前後へ
                 measureAxis = 'pitch';
                 label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
                 btn.innerText = '🔄 左右(横)モードに切替';
@@ -867,15 +874,14 @@
             currentMeasuredAngleDeg = 0;
             updateSensorDisplay(0);
         }
-
-        function startMeasurement() {
+function startMeasurement() {
             isMeasuring = true;
             sensorEventFired = false;
             
             // 計測開始時にUI状態をリセット・同期（デフォルトは前後モード）
             measureAxis = 'pitch';
-            document.getElementById('measureModeLabel').innerHTML = '現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
-            document.getElementById('btnAxisToggle').innerText = '🔄 左右(横)モード切替';
+            document.getElementById('measureModeLabel').innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
+            document.getElementById('btnAxisToggle').innerText = '🔄 左右(横)モードに切替';
 
             window.addEventListener('deviceorientation', handleOrientation);
             
@@ -898,7 +904,6 @@
                 }
             }, 1000);
         }
-
         function stopMeasurement() {
             isMeasuring = false;
             if (sensorCheckTimeout) clearTimeout(sensorCheckTimeout);
@@ -916,11 +921,11 @@
             calcBtn.onclick = calculateTriangle;
         }
 
-        function handleOrientation(event) {
+    function handleOrientation(event) {
             if (!isMeasuring) return;
             sensorEventFired = true; 
             
-            if (event.beta === null && event.gamma === null) {
+            if (event.beta === null && event.gamma === null && event.alpha === null) {
                 document.getElementById('sensDeg').innerText = "---";
                 document.getElementById('sensDms').innerText = "セキュリティ制限";
                 return;
@@ -928,17 +933,23 @@
 
             let theta = 0;
             
-            // 【修正箇所】純粋なジャイロの傾きをそのまま採用（平置き=0度、立てる=90度）
             if (measureAxis === 'pitch') {
                 // 前後(縦)モード：betaの絶対値
                 let b = Math.abs(event.beta || 0);
-                if (b > 90) b = 180 - b; // 90度を超えて反対側に倒れた場合の補正
+                if (b > 90) b = 180 - b; 
                 theta = b;
-            } else {
+            } else if (measureAxis === 'roll') {
                 // 左右(横)モード：gammaの絶対値
                 let g = Math.abs(event.gamma || 0);
-                if (g > 90) g = 180 - g; // 念のための補正
+                if (g > 90) g = 180 - g; 
                 theta = g;
+            } else if (measureAxis === 'yaw') {
+                // 回転(水平・Z軸)モード：alphaの絶対値
+                let a = Math.abs(event.alpha || 0);
+                // 0〜360度を他のモードと同じように0〜90度に折り返す
+                a = a % 180;
+                if (a > 90) a = 180 - a;
+                theta = a;
             }
             
             // 安全装置（エラー・マイナス値回避）
@@ -948,7 +959,7 @@
             currentMeasuredAngleDeg = theta;
             updateSensorDisplay(theta);
         }
-
+        
         function updateSensorDisplay(theta) {
             document.getElementById('sensDeg').innerText = theta.toFixed(2);
             document.getElementById('sensDms').innerText = toDMS(theta);
