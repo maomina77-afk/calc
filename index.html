@@ -430,11 +430,11 @@ function toDMS(dec) {
             
             // 秒（より細かく、小数点以下2桁まで表示）
             let secFloat = (minFloat - m) * 60;
-            let s = secFloat.toFixed(2); 
+            let s = secFloat.toFixed(3); 
             
             // 丸めによって「60.00秒」になった場合の繰り上がり処理
             if (parseFloat(s) >= 60) {
-                s = (0).toFixed(2);
+                s = (0).toFixed(3);
                 m += 1;
             }
             // 「60分」になった場合の繰り上がり処理
@@ -514,8 +514,8 @@ function toDMS(dec) {
             }
             document.getElementById('base').value = b.toFixed(4); document.getElementById('height').value = h.toFixed(4); document.getElementById('hypo').value = hy.toFixed(4);
             let hStr = "";
-            if (aType === 'deg') { document.getElementById('angle').value = deg.toFixed(4); hStr = `${deg.toFixed(2)}度 (${toDMS(deg)})`; }
-            else if (aType === 'pct') { document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4); hStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(2)}％`; }
+            if (aType === 'deg') { document.getElementById('angle').value = deg.toFixed(4); hStr = `${deg.toFixed(3)}度 (${toDMS(deg)})`; }
+            else if (aType === 'pct') { document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4); hStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(3)}％`; }
             else if (aType === 'wari') { document.getElementById('angle').value = (deg >= 89.9) ? "0.0000" : wari.toFixed(4); hStr = `${wari.toFixed(4)} (${wariText})`; }
             addHistory(`[三角形] 底辺:${toCommaString(b)}, 高さ:${toCommaString(h)}, 斜辺:${toCommaString(hy)}, 角度:${hStr}`);
             updateLabels(); saveAllToLocalStorage();
@@ -711,7 +711,7 @@ function toDMS(dec) {
         }
 
         function updateSensorDisplay(theta) {
-            document.getElementById('sensDeg').innerText = theta.toFixed(2);
+            document.getElementById('sensDeg').innerText = theta.toFixed(3);
             document.getElementById('sensDms').innerText = toDMS(theta);
             
             if (theta >= 89.9) {
@@ -720,7 +720,7 @@ function toDMS(dec) {
                 return;
             }
             let pct = Math.tan(theta * Math.PI / 180) * 100;
-            document.getElementById('sensPct').innerText = pct.toFixed(1);
+            document.getElementById('sensPct').innerText = pct.toFixed(3);
             
             if (theta < 0.1) {
                 document.getElementById('sensWari').innerText = "水平";
