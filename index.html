@@ -210,10 +210,12 @@
                             <button id="btnAxisToggle" onclick="toggleMeasureAxis()" style="background:#0288d1; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold; width: 100%;">🔄 軸切替</button>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.95rem; line-height: 1.2;">
-                            <div>度: <span id="sensDeg" style="color:#fff; font-weight:bold;">0.00</span>°</div>
+                            
                             <div>％: <span id="sensPct" style="color:#fff; font-weight:bold;">0.00</span>%</div>
                             <div>割: <span id="sensWari" style="color:#fff; font-weight:bold;">-</span></div>
+                            <div>度: <span id="sensDeg" style="color:#fff; font-weight:bold;">0.00</span>°</div>
                             <div style="font-size: 0.85rem;">DMS: <span id="sensDms" style="color:#fff; font-weight:bold;">0度0分0.0秒</span></div>
+                            
                         </div>
                     </div>
 
@@ -414,34 +416,35 @@
             if (val === "" || isNaN(val) || val === null) return "";
             return parseFloat(val).toLocaleString(undefined, { maximumFractionDigits: 4 });
         }
-        function toDMS(dec) {
+function toDMS(dec) {
             if (isNaN(dec) || dec === null || dec === "") return "";
             let absDec = Math.abs(parseFloat(dec));
+            
+            // 度
             let d = Math.floor(absDec);
+            
+            // 分（浮動小数点の計算誤差を吸収するために微小補正）
             let minFloat = (absDec - d) * 60;
+            minFloat = Math.round(minFloat * 1000000) / 1000000; 
             let m = Math.floor(minFloat);
-            let s = ((minFloat - m) * 60).toFixed(1);
-            return `${dec < 0 ? "-" : ""}${d}度${m}分${s}秒`;
-        }
-
-        // タブ制御・計算ロジック系は変更なし（省略してそのまま記述）
-        function updateLabels() {
-            const ids = ['base', 'height', 'hypo', 'obe_a1', 'obe_b1', 'obe_a2', 'obe_b2', 'obe_h', 'obe_res'];
-            ids.forEach(id => {
-                let el = document.getElementById(id), lbl = document.getElementById(id + '_lbl');
-                if (el && lbl) lbl.innerText = el.value ? toCommaString(el.value) : "";
-            });
-            let angleEl = document.getElementById('angle'), angleLbl = document.getElementById('angle_lbl'), angleType = document.getElementById('angleType').value;
-            if (angleEl && angleLbl) {
-                let val = angleEl.value;
-                if (!val || isNaN(val)) angleLbl.innerText = "";
-                else {
-                    let fmt = toCommaString(val);
-                    if (angleType === 'deg') angleLbl.innerText = `${fmt}° ＝ ${toDMS(val)}`;
-                    else if (angleType === 'pct') angleLbl.innerText = `${fmt} ％`;
-                    else if (angleType === 'wari') angleLbl.innerText = fmt;
-                }
+            
+            // 秒（より細かく、小数点以下2桁まで表示）
+            let secFloat = (minFloat - m) * 60;
+            let s = secFloat.toFixed(2); 
+            
+            // 丸めによって「60.00秒」になった場合の繰り上がり処理
+            if (parseFloat(s) >= 60) {
+                s = (0).toFixed(2);
+                m += 1;
             }
+            // 「60分」になった場合の繰り上がり処理
+            if (m >= 60) {
+                m -= 60;
+                d += 1;
+            }
+            
+            let sign = dec < 0 ? "-" : "";
+            return `${sign}${d}度${m}分${s}秒`;
         }
         function switchTab(tabId, isFromTargetBtn = false, isInit = false) {
             if (isMeasuring && tabId !== 'triangle') stopMeasurement();
