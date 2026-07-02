@@ -416,36 +416,38 @@
             if (val === "" || isNaN(val) || val === null) return "";
             return parseFloat(val).toLocaleString(undefined, { maximumFractionDigits: 4 });
         }
+// --- 度・DMSの表示を詳細にするための修正 ---
+
 function toDMS(dec) {
-            if (isNaN(dec) || dec === null || dec === "") return "";
-            let absDec = Math.abs(parseFloat(dec));
-            
-            // 度
-            let d = Math.floor(absDec);
-            
-            // 分（浮動小数点の計算誤差を吸収するために微小補正）
-            let minFloat = (absDec - d) * 60;
-            minFloat = Math.round(minFloat * 1000000) / 1000000; 
-            let m = Math.floor(minFloat);
-            
-            // 秒（より細かく、小数点以下2桁まで表示）
-            let secFloat = (minFloat - m) * 60;
-            let s = secFloat.toFixed(3); 
-            
-            // 丸めによって「60.00秒」になった場合の繰り上がり処理
-            if (parseFloat(s) >= 60) {
-                s = (0).toFixed(3);
-                m += 1;
-            }
-            // 「60分」になった場合の繰り上がり処理
-            if (m >= 60) {
-                m -= 60;
-                d += 1;
-            }
-            
-            let sign = dec < 0 ? "-" : "";
-            return `${sign}${d}度${m}分${s}秒`;
-        }
+    if (isNaN(dec) || dec === null || dec === "") return "";
+    let absDec = Math.abs(parseFloat(dec));
+    
+    // 度 (整数部)
+    let d = Math.floor(absDec);
+    
+    // 分 (小数点以下を60倍)
+    let minFloat = (absDec - d) * 60;
+    let m = Math.floor(minFloat);
+    
+    // 秒 (さらに小数点以下を60倍し、小数点以下2桁まで表示)
+    let s = ((minFloat - m) * 60).toFixed(2);
+    
+    // 繰り上がり処理（秒が60になった場合）
+    if (parseFloat(s) >= 60) {
+        s = (0).toFixed(2);
+        m += 1;
+    }
+    // 繰り上がり処理（分が60になった場合）
+    if (m >= 60) {
+        m = 0;
+        d += 1;
+    }
+    
+    let sign = dec < 0 ? "-" : "";
+    return `${sign}${d}度${m}分${s}秒`;
+}
+
+
         function switchTab(tabId, isFromTargetBtn = false, isInit = false) {
             if (isMeasuring && tabId !== 'triangle') stopMeasurement();
             document.querySelectorAll('.panel, .tab').forEach(e => e.classList.remove('active'));
@@ -707,33 +709,35 @@ function toDMS(dec) {
                 let pitchAngle = Math.atan2(uy, Math.abs(uz)) * (180 / Math.PI);
                 let rollAngle = Math.atan2(ux, Math.abs(uz)) * (180 / Math.PI);
                 updateVisualFlatMode(pitchAngle, rollAngle);
-            }
         }
 
         function updateSensorDisplay(theta) {
-            document.getElementById('sensDeg').innerText = theta.toFixed(3);
-            document.getElementById('sensDms').innerText = toDMS(theta);
-            
-            if (theta >= 89.9) {
-                document.getElementById('sensPct').innerText = "∞";
-                document.getElementById('sensWari').innerText = "0.000 (0割)";
-                return;
-            }
-            let pct = Math.tan(theta * Math.PI / 180) * 100;
-            document.getElementById('sensPct').innerText = pct.toFixed(3);
-            
-            if (theta < 0.1) {
-                document.getElementById('sensWari').innerText = "水平";
-            } else {
-                let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180)); 
-                let wInt = Math.floor(wari), bInt = Math.floor(Math.round((wari - wInt) * 100) / 10);
-                let wText = "";
-                if (wInt > 0) wText += wInt + "割"; if (bInt > 0) wText += bInt + "分";
-                if (wText === "") wText = "0割";
-                document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wText + ")";
-            }
-        }
-
+    // 度は小数点以下2桁まで表示するように変更
+    document.getElementById('sensDeg').innerText = theta.toFixed(2);
+    document.getElementById('sensDms').innerText = toDMS(theta);
+    
+    if (theta >= 89.9) {
+        document.getElementById('sensPct').innerText = "∞";
+        document.getElementById('sensWari').innerText = "0.000 (0割)";
+        return;
+    }
+    
+    let pct = Math.tan(theta * Math.PI / 180) * 100;
+    // ％も小数点以下2桁まで表示
+    document.getElementById('sensPct').innerText = pct.toFixed(2);
+    
+    if (theta < 0.1) {
+        document.getElementById('sensWari').innerText = "水平";
+    } else {
+        let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180));
+        let wInt = Math.floor(wari);
+        let bInt = Math.floor((wari - wInt) * 10 + 0.05); // 四捨五入を正確に
+        
+        // 割分表示のロジック
+        let wariText = `${wInt}割${bInt}分`;
+        document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wariText + ")";
+    }
+}
         // ビジュアル用アップデート関数
         function updateVisualFlatMode(pitch, roll) {
             const circle = document.getElementById('flat-circle');
