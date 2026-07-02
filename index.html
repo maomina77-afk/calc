@@ -711,28 +711,32 @@ function toDMS(dec) {
         }
 
         function updateSensorDisplay(theta) {
-            document.getElementById('sensDeg').innerText = theta.toFixed(2);
-            document.getElementById('sensDms').innerText = toDMS(theta);
-            
-            if (theta >= 89.9) {
-                document.getElementById('sensPct').innerText = "∞";
-                document.getElementById('sensWari').innerText = "0.000 (0割)";
-                return;
-            }
-            let pct = Math.tan(theta * Math.PI / 180) * 100;
-            document.getElementById('sensPct').innerText = pct.toFixed(1);
-            
-            if (theta < 0.1) {
-                document.getElementById('sensWari').innerText = "水平";
-            } else {
-                let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180)); 
-                let wInt = Math.floor(wari), bInt = Math.floor(Math.round((wari - wInt) * 100) / 10);
-                let wText = "";
-                if (wInt > 0) wText += wInt + "割"; if (bInt > 0) wText += bInt + "分";
-                if (wText === "") wText = "0割";
-                document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wText + ")";
-            }
-        }
+    // 度は小数点以下2桁まで表示するように変更
+    document.getElementById('sensDeg').innerText = theta.toFixed(2);
+    document.getElementById('sensDms').innerText = toDMS(theta);
+    
+    if (theta >= 89.9) {
+        document.getElementById('sensPct').innerText = "∞";
+        document.getElementById('sensWari').innerText = "0.000 (0割)";
+        return;
+    }
+    
+    let pct = Math.tan(theta * Math.PI / 180) * 100;
+    // ％も小数点以下2桁まで表示
+    document.getElementById('sensPct').innerText = pct.toFixed(2);
+    
+    if (theta < 0.1) {
+        document.getElementById('sensWari').innerText = "水平";
+    } else {
+        let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180));
+        let wInt = Math.floor(wari);
+        let bInt = Math.floor((wari - wInt) * 10 + 0.05); // 四捨五入を正確に
+        
+        // 割分表示のロジック
+        let wariText = `${wInt}割${bInt}分`;
+        document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wariText + ")";
+    }
+}
 
         // ビジュアル用アップデート関数
         function updateVisualFlatMode(pitch, roll) {
