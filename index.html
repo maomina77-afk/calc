@@ -446,8 +446,6 @@ function toDMS(dec) {
     let sign = dec < 0 ? "-" : "";
     return `${sign}${d}度${m}分${s}秒`;
 }
-
-
         function switchTab(tabId, isFromTargetBtn = false, isInit = false) {
             if (isMeasuring && tabId !== 'triangle') stopMeasurement();
             document.querySelectorAll('.panel, .tab').forEach(e => e.classList.remove('active'));
@@ -516,8 +514,8 @@ function toDMS(dec) {
             }
             document.getElementById('base').value = b.toFixed(4); document.getElementById('height').value = h.toFixed(4); document.getElementById('hypo').value = hy.toFixed(4);
             let hStr = "";
-            if (aType === 'deg') { document.getElementById('angle').value = deg.toFixed(4); hStr = `${deg.toFixed(3)}度 (${toDMS(deg)})`; }
-            else if (aType === 'pct') { document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4); hStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(3)}％`; }
+            if (aType === 'deg') { document.getElementById('angle').value = deg.toFixed(4); hStr = `${deg.toFixed(2)}度 (${toDMS(deg)})`; }
+            else if (aType === 'pct') { document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4); hStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(2)}％`; }
             else if (aType === 'wari') { document.getElementById('angle').value = (deg >= 89.9) ? "0.0000" : wari.toFixed(4); hStr = `${wari.toFixed(4)} (${wariText})`; }
             addHistory(`[三角形] 底辺:${toCommaString(b)}, 高さ:${toCommaString(h)}, 斜辺:${toCommaString(hy)}, 角度:${hStr}`);
             updateLabels(); saveAllToLocalStorage();
@@ -709,35 +707,33 @@ function toDMS(dec) {
                 let pitchAngle = Math.atan2(uy, Math.abs(uz)) * (180 / Math.PI);
                 let rollAngle = Math.atan2(ux, Math.abs(uz)) * (180 / Math.PI);
                 updateVisualFlatMode(pitchAngle, rollAngle);
+            }
         }
 
         function updateSensorDisplay(theta) {
-    // 度は小数点以下2桁まで表示するように変更
-    document.getElementById('sensDeg').innerText = theta.toFixed(2);
-    document.getElementById('sensDms').innerText = toDMS(theta);
-    
-    if (theta >= 89.9) {
-        document.getElementById('sensPct').innerText = "∞";
-        document.getElementById('sensWari').innerText = "0.000 (0割)";
-        return;
-    }
-    
-    let pct = Math.tan(theta * Math.PI / 180) * 100;
-    // ％も小数点以下2桁まで表示
-    document.getElementById('sensPct').innerText = pct.toFixed(2);
-    
-    if (theta < 0.1) {
-        document.getElementById('sensWari').innerText = "水平";
-    } else {
-        let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180));
-        let wInt = Math.floor(wari);
-        let bInt = Math.floor((wari - wInt) * 10 + 0.05); // 四捨五入を正確に
-        
-        // 割分表示のロジック
-        let wariText = `${wInt}割${bInt}分`;
-        document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wariText + ")";
-    }
-}
+            document.getElementById('sensDeg').innerText = theta.toFixed(2);
+            document.getElementById('sensDms').innerText = toDMS(theta);
+            
+            if (theta >= 89.9) {
+                document.getElementById('sensPct').innerText = "∞";
+                document.getElementById('sensWari').innerText = "0.000 (0割)";
+                return;
+            }
+            let pct = Math.tan(theta * Math.PI / 180) * 100;
+            document.getElementById('sensPct').innerText = pct.toFixed(1);
+            
+            if (theta < 0.1) {
+                document.getElementById('sensWari').innerText = "水平";
+            } else {
+                let wari = Math.abs(1 / Math.tan(theta * Math.PI / 180)); 
+                let wInt = Math.floor(wari), bInt = Math.floor(Math.round((wari - wInt) * 100) / 10);
+                let wText = "";
+                if (wInt > 0) wText += wInt + "割"; if (bInt > 0) wText += bInt + "分";
+                if (wText === "") wText = "0割";
+                document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wText + ")";
+            }
+        }
+
         // ビジュアル用アップデート関数
         function updateVisualFlatMode(pitch, roll) {
             const circle = document.getElementById('flat-circle');
