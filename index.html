@@ -1,225 +1,1037 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Orientation Overlay - index.html</title>
-  <style>
-    /* --- ページ基本レイアウト（必要に応じて既存スタイルに合わせて調整） --- */
-    html,body { height:100%; margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif; background:#f6f7f9; color:#222; }
-    main { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>計算ツール V1.02</title>
+    <style>
+        /* 屋外視認性を極限まで高めたハイコントラスト・ダークテーマ */
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        *, *:before, *:after { box-sizing: inherit; }
 
-    /* --- デモ用コンテンツ（既存アプリがある場合は置き換えてください） --- */
-    .app {
-      width:100%;
-      max-width:900px;
-      background: #fff;
-      border-radius:12px;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
-      padding:24px;
-      box-sizing:border-box;
-    }
-    h1 { margin:0 0 12px 0; font-size:20px; }
-    p { margin:0 0 12px 0; color:#444; }
+        h2 { color: #ffeb3b; font-size: 1.3rem; margin: 4px 0 8px 0; border-bottom: 2px solid #ffeb3b; padding-bottom: 3px; }
+        label { font-size: 1.1rem; font-weight: bold; color: #b3e5fc; display: block; }
+        
+        /* 3桁コンマ表示用・度分秒併記用のリアルタイムラベル */
+        .format-label { font-size: 1.4rem; color: #00e676; text-align: right; min-height: 1.5rem; font-weight: bold; font-family: monospace; margin-top: 2px;}
 
-    /* --- オーバーレイ（角度表示・線） --- */
-    #overlay {
-      position: fixed;
-      left: 12px;
-      top: 12px;
-      z-index: 99999;
-      pointer-events: none;
-      font-family: sans-serif;
-      color: #222;
-      background: rgba(255,255,255,0.92);
-      padding: 8px 10px;
-      border-radius: 8px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    }
-    .angle-box { margin-bottom:6px; font-size:14px; }
-    .angle-label { font-weight:700; margin-right:6px; }
+        input[type="number"], input[type="text"], select {
+            width: 100%;
+            padding: 6px;
+            font-size: 1.0rem;
+            background-color: #222222;
+            color: #ffff00;
+            border: 2px solid #777;
+            border-radius: 8px;
+        }
+        input:read-only { background-color: #111111; color: #fff; border-color: #333; }
+        
+        button {
+            padding: 6px 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.6);
+        }
+        
+        /* タブシステム */
+        .tab-container { display: flex; margin-bottom: 12px; gap: 4px; }
+        .tab { 
+            flex: 1; padding: 6px 5px; text-align: center; font-weight: bold; font-size: 1.1rem;
+            background: #333; cursor: pointer; color: #ccc; border: 1px solid #111;
+             margin-top: 6px; border-radius: 6px;
+        }
+        .tab.active { background: #ffeb3b; color: #000; }
+        .panel { display: none; }
+        .panel.active { display: block; }
 
-    /* 線の共通 */
-    .line {
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      transform-origin: center center;
-      pointer-events: none;
-      z-index: 99998;
-    }
+        /* 入力グループ */
+        .input-group { margin-top: 6px; }
+        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;}
+        .btn-calc-link { background-color: #555; color: #fff; padding: 5px 12px; font-size: 0.95rem; border-radius: 6px; box-shadow: none;}
+        
+        /* 角度計測用スタイル */
+        .btn-measure { background-color: #f57c00; }
+        .btn-measure.active { background-color: #d32f2f; }
+        .btn-confirm { 
+            background-color: #4caf50 !important; 
+            color: #ffffff !important; 
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8) !important; 
+            transition: all 0.3s; 
+        }
 
-    /* 緑の水平線（可変長） */
-    #hLine {
-      height: 4px;
-      background: limegreen;
-      width: 220px;
-      margin-left: -110px;
-      margin-top: -2px;
-      transition: width 120ms linear, background-color 120ms linear, transform 80ms linear;
-      box-shadow: 0 0 8px rgba(0,128,0,0.18);
-      border-radius: 2px;
-    }
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-group button { flex: 1; font-size: 1.2rem; padding: 10px; }
+        .btn-calc { background-color: #0288d1; color: #ffffff; }
+        .btn-clear { background-color: #d32f2f; color: #ffffff; }
+        .btn-save { background-color: #388e3c; color: #ffffff; width: 100%; font-size: 1.2rem; padding: 12px;}
 
-    /* グレーの補助横線（長め） */
-    #gLine {
-      height: 2px;
-      background: #999;
-      width: 320px;
-      margin-left: -160px;
-      margin-top: -1px;
-      opacity: 0.95;
-      transition: width 120ms linear, opacity 120ms linear, background-color 120ms linear;
-      border-radius: 1px;
-    }
+        /* --- 関数電卓用：スワイプ切替レイアウト --- */
+        .calc-slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+        .calc-slider::-webkit-scrollbar { display: none; }
+        
+        .calc-page {
+            flex: 0 0 100%;
+            width: 100%;
+            scroll-snap-align: start;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+        
+        #calcDisplay { 
+            text-align: right; 
+            font-size: 1.8rem; 
+            padding: 6px; 
+            margin-bottom: 2px; 
+            font-family: monospace;
+            background-color: #111;
+            border: 3px solid #0288d1;
+        }
+        .btn-apply { background-color: #fbc02d; color: #000; width: 100%; margin-bottom: 10px; display: none; font-size: 1.4rem; padding: 14px;}
+        
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+        .calc-grid button { padding: 18px 0; font-size: 1.5rem; background: #333; color: #fff; }
+        .calc-grid button.op { background: #f57c00; }
+        .calc-grid button.opc { background: #f57c00; }
+        .calc-grid button.opev { background: #0288d1; }       
+        .calc-grid button.eval { background: #0288d1; grid-column: span 4; font-size: 1.6rem; padding: 18px 0;}
 
-    /* グレーの補助縦線（ランドスケープ用） */
-    #gLineV {
-      width: 2px;
-      height: 320px;
-      margin-left: -1px;
-      margin-top: -160px;
-      background: #999;
-      opacity: 0.95;
-      transition: height 120ms linear, opacity 120ms linear, background-color 120ms linear;
-      display: none;
-      border-radius: 1px;
-    }
+        .memory-row { display: flex; gap: 6px; margin-bottom: 10px; align-items: center;}
+        .mem-btn { background-color: #546e7a; color: #fff; flex: 1; padding: 12px 0; font-size: 1.2rem;}
+        .mem-input { flex: 2.5; font-size: 1.3rem !important; padding: 10px !important; }
+        .mem-save { background-color: #00695c; color: #fff; flex: 1; padding: 12px 0; font-size: 1.1rem;}
 
-    /* 近接時の色変化（赤） */
-    .near { background: red !important; box-shadow: 0 0 10px rgba(255,0,0,0.28) !important; }
+        .formula-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .formula-list button { background: #424242; color: #fff; padding: 6px 8px; font-size: 1.05rem; text-align: left; box-shadow: none;}
+        
+        #history-area {
+            width: 100%; height: 145px; background-color: #111; color: #fff;
+            border: 1px solid #444; padding: 8px; font-size: 1rem; overflow-y: auto; word-wrap: break-word; font-family: monospace;
+        }
+        
+        .swipe-indicator { text-align: center; color: #ebebeb; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;}
 
-    /* 補助的な説明（小画面で邪魔なら非表示に） */
-    @media (max-width:420px){
-      #overlay { left:8px; top:8px; padding:6px 8px; font-size:13px; }
-    }
-  </style>
+        /* 最下部設定バー */
+        .bottom-bar {
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #222; padding: 15px 12px; border-radius: 6px; 
+            margin-top: 6px; border-top: 2px solid #444;
+        }
+
+        /* カスタムモーダル用のスタイル */
+        #customModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #222; padding: 20px; border-radius: 10px; text-align: center; 
+            border: 2px solid #0288d1; width: 85%; max-width: 400px; box-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+    </style>
 </head>
 <body>
-  <main>
-    <div class="app" role="main" aria-label="Demo app">
-      <h1>Orientation Overlay Demo</h1>
-      <p>このファイルはスマホの傾きを可視化するためのサンプルです。スマホ実機で開いて動作を確認してください。</p>
-      <p>水平は <strong>0°</strong>、垂直は <strong>90°</strong> を基準に表示します。±1° に入ると色が変わります。</p>
-      <p>既存のアプリがある場合は、このファイル内のオーバーレイブロック（コメント ORIENTATION-OVERLAY）を該当箇所に統合してください。</p>
+
+    <div id="triangle" class="panel">
+        <div class="input-group">
+            <div class="input-header"><label>底辺（水平距離）</label><button class="btn-calc-link" onclick="openCalcFor('base')">電卓から入力</button></div>
+            <input type="number" id="base" placeholder="数値入力..." step="any">
+            <div id="base_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>高さ（垂直高）</label><button class="btn-calc-link" onclick="openCalcFor('height')">電卓から入力</button></div>
+            <input type="number" id="height" placeholder="数値入力..." step="any">
+            <div id="height_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>斜辺</label><button class="btn-calc-link" onclick="openCalcFor('hypo')">電卓から入力</button></div>
+            <input type="number" id="hypo" placeholder="数値入力..." step="any">
+            <div id="hypo_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header">
+                <label>角度・勾配</label>
+                <div style="display: flex; gap: 4px;">
+                    <button id="btnMeasureAngle" class="btn-calc-link btn-measure" onclick="toggleAngleMeasurement()">角度計測</button>
+                    <button class="btn-calc-link" onclick="openCalcFor('angle')">電卓から入力</button>
+                </div>
+            </div>
+
+            <div id="sensorDisplay" style="display: none; background: #1a3c34; border: 2px solid #00e676; border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div id="measureModeLabel" style="color: #00e676; font-size: 0.95rem;">📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き</div>
+                    <button id="btnAxisToggle" onclick="toggleMeasureAxis()" style="background:#0288d1; color:#fff; border:none; padding:6px 10px; border-radius:4px; font-size:0.9rem; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">🔄 左右モードに切替</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 1.1rem;">
+                    <div>度: <span id="sensDeg" style="color:#fff; font-weight:bold;">0.00</span>°</div>
+                    <div>％: <span id="sensPct" style="color:#fff; font-weight:bold;">0.00</span>%</div>
+                    <div style="grid-column: span 2;">DMS: <span id="sensDms" style="color:#fff; font-weight:bold;">0度0分0.0秒</span></div>
+                    <div style="grid-column: span 2;">割: <span id="sensWari" style="color:#fff; font-weight:bold;">-</span></div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 6px;">
+                <input type="number" id="angle" placeholder="数値入力..." step="any" style="flex: 1.8;">
+                <select id="angleType" style="flex: 1.2; font-size: 1.1rem; padding: 5px;" onchange="updateLabels(); saveAllToLocalStorage();">
+                    <option value="deg">度 (°)</option>
+                    <option value="pct">％ (勾配)</option>
+                    <option value="wari">割 (幅/高)</option>
+                </select>
+            </div>
+            <div id="angle_lbl" class="format-label"></div>
+        </div>
+
+        <div class="input-group" style="margin-top: 15px;">
+            <label style="color:#ffeb3b; font-size: 1rem; margin-bottom: 4px;">▼ 計算モードの選択</label>
+            <select id="calcMode" onchange="updateInputStates(); saveAllToLocalStorage();" style="background-color: #333; color: #fff; font-size: 1.1rem;">
+                <option value="bh">底辺 ＆ 高さ 固定</option>
+                <option value="ba">底辺 ＆ 勾配 固定</option>
+                <option value="ha">高さ ＆ 勾配 固定</option>
+                <option value="hy_a">斜辺 ＆ 勾配 固定</option>
+                <option value="hy_b">斜辺 ＆ 底辺 固定</option>
+                <option value="hy_h">斜辺 ＆ 高さ 固定</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-clear" onclick="clearTriangle()">クリア</button>
+            <button id="btnTriangleCalc" class="btn-calc" onclick="calculateTriangle()">計 算</button>
+        </div>
     </div>
-  </main>
 
-  <!-- ORIENTATION-OVERLAY-START -->
-  <div id="overlay" aria-hidden="true">
-    <div class="angle-box"><span class="angle-label">水平 H</span><span id="hVal">0°</span></div>
-    <div class="angle-box"><span class="angle-label">垂直 V</span><span id="vVal">90°</span></div>
-  </div>
+    <div id="obelisk" class="panel">
+        <div class="input-group">
+            <div class="input-header"><label>上面の長辺 (a1)</label><button class="btn-calc-link" onclick="openCalcFor('obe_a1')">電卓から入力</button></div>
+            <input type="number" id="obe_a1" placeholder="数値入力..." step="any">
+            <div id="obe_a1_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>上面の短辺 (b1)</label><button class="btn-calc-link" onclick="openCalcFor('obe_b1')">電卓から入力</button></div>
+            <input type="number" id="obe_b1" placeholder="数値入力..." step="any">
+            <div id="obe_b1_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>底面の長辺 (a2)</label><button class="btn-calc-link" onclick="openCalcFor('obe_a2')">電卓から入力</button></div>
+            <input type="number" id="obe_a2" placeholder="数値入力..." step="any">
+            <div id="obe_a2_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>底面の短辺 (b2)</label><button class="btn-calc-link" onclick="openCalcFor('obe_b2')">電卓から入力</button></div>
+            <input type="number" id="obe_b2" placeholder="数値入力..." step="any">
+            <div id="obe_b2_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <div class="input-header"><label>高さ (h)</label><button class="btn-calc-link" onclick="openCalcFor('obe_h')">電卓から入力</button></div>
+            <input type="number" id="obe_h" placeholder="数値入力..." step="any">
+            <div id="obe_h_lbl" class="format-label"></div>
+        </div>
+        <div class="input-group">
+            <label style="color:#ffeb3b;">計算結果：体積 (V)</label>
+            <input type="text" id="obe_res" readonly style="font-weight:bold; font-size:1.5rem;">
+            <div id="obe_res_lbl" class="format-label" style="color:#ffeb3b;"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn-clear" onclick="clearObelisk()">クリア</button>
+            <button class="btn-calc" onclick="calculateObelisk()">体積計算</button>
+        </div>
+    </div>
 
-  <div id="hLine" class="line" aria-hidden="true"></div>
-  <div id="gLine" class="line" aria-hidden="true"></div>
-  <div id="gLineV" class="line" aria-hidden="true"></div>
+    <div id="calculator" class="panel">
+        <input type="text" id="calcDisplay" placeholder="0" inputmode="none" 
+               onclick="this.setAttribute('inputmode', 'text'); this.focus(); lastCalcCursorPos = this.selectionStart;" 
+               onkeyup="lastCalcCursorPos = this.selectionStart;" 
+               onblur="this.setAttribute('inputmode', 'none');">
 
-  <script>
-    /*
-      ORIENTATION-OVERLAY SCRIPT
-      - 既存の deviceorientation ハンドラをこのブロックで置き換えてください
-      - 水平を 0°, 垂直を 90° として扱い、±1° に入ったら色を変えます
-      - 水平付近で被らないように緑線とグレー線の長さを動的に変えます
-      - 横向き（ランドスケープ）時は縦グレー線を表示します
-    */
+        <div id="calcDisplayFormat" class="format-label" style="color:#ffeb3b; margin-bottom: 5px;"></div>
+        <button id="btnApply" class="btn-apply" onclick="applyToTargetPanel()">確定して入力欄に戻る</button>
 
-    (function(){
-      // 要素参照
-      const hLine = document.getElementById('hLine');
-      const gLine = document.getElementById('gLine');
-      const gLineV = document.getElementById('gLineV');
-      const hVal = document.getElementById('hVal');
-      const vVal = document.getElementById('vVal');
+        <div class="swipe-indicator">◀ 左右スワイプで ページ切替 (1/2) ▶</div>
 
-      // 閾値（度）
-      const THRESH = 1.0;
+        <div class="calc-slider" id="calcSlider">
+            <div class="calc-page">
+                <div class="memory-row">
+                    <button class="mem-btn" onclick="insertMemory(1)">M1</button>
+                    <input type="text" id="m1" class="mem-input" placeholder="式/定数">
+                    <button class="mem-save" onclick="saveMemory(1)">登録</button>
+                </div>
+                <div class="memory-row">
+                    <button class="mem-btn" onclick="insertMemory(2)">M2</button>
+                    <input type="text" id="m2" class="mem-input" placeholder="式/定数">
+                    <button class="mem-save" onclick="saveMemory(2)">登録</button>
+                </div>
 
-      // 角度ユーティリティ
-      function to360(a){ return (a % 360 + 360) % 360; }
-      function shortestDistance(a,b){ let d = Math.abs(a-b) % 360; return d>180 ? 360-d : d; }
+                <div class="calc-grid">
+                    <button class="op" onclick="clearCalc()">C</button>
+                    <button class="op" onclick="backspaceCalc()">BS</button>
+                    <button onclick="appendCalc('(')">(</button>
+                    <button onclick="appendCalc(')')">)</button>
 
-      // H/V 計算（左右対称で水平=0、垂直=90）
-      function computeHV(rawPitch, rawRoll){
-        const p360 = to360(rawPitch);
-        // 垂直度合い: 90 または 270 に近いほど「立っている」
-        const distTo90 = Math.min(shortestDistance(p360, 90), shortestDistance(p360, 270)); // 0..180
-        // distTo90=0 -> vertical=90, distTo90=90 -> vertical=0
-        const vertical = Math.max(0, Math.min(90, 90 - distTo90));
+                    <button onclick="appendCalc('7')">7</button>
+                    <button onclick="appendCalc('8')">8</button>
+                    <button onclick="appendCalc('9')">9</button>
+                    <button class="opc" onclick="appendCalc('/')">／</button>
 
-        // 水平は roll の絶対値を使う（左右とも 0 にする）
-        const rAbs = Math.min(90, Math.abs(rawRoll || 0)); // 0..90
-        const horizontal = rAbs; // 0..90
+                    <button onclick="appendCalc('4')">4</button>
+                    <button onclick="appendCalc('5')">5</button>
+                    <button onclick="appendCalc('6')">6</button>
+                    <button class="opc" onclick="appendCalc('*')">Ｘ</button>
 
-        return { horizontal, vertical };
-      }
+                    <button onclick="appendCalc('1')">1</button>
+                    <button onclick="appendCalc('2')">2</button>
+                    <button onclick="appendCalc('3')">3</button>
+                    <button class="opc" onclick="appendCalc('-')">－</button>
 
-      // UI 更新
-      function updateUI(h, v, rawRoll){
-        hVal.textContent = Math.round(h) + '°';
-        vVal.textContent = Math.round(v) + '°';
+                    <button class="opev" onclick="evalCalc()">計算</button>
+                    <button onclick="appendCalc('0')">0</button>
+                    <button onclick="appendCalc('.')">.</button>
+                    <button class="opc" onclick="appendCalc('+')">＋</button>
 
-        // 色変更: 水平が 0±THRESH なら緑線を赤に
-        if (h <= THRESH) hLine.classList.add('near'); else hLine.classList.remove('near');
+                    <button class="eval" onclick="evalCalc()">計算</button>
+                </div>
+            </div>
 
-        // 垂直が 90±THRESH ならグレー線を赤に
-        if (Math.abs(v - 90) <= THRESH) {
-          gLine.classList.add('near');
-          gLineV.classList.add('near');
-        } else {
-          gLine.classList.remove('near');
-          gLineV.classList.remove('near');
+            <div class="calc-page">
+                <div class="memory-row">
+                    <button class="mem-btn" onclick="insertMemory(3)">M3</button>
+                    <input type="text" id="m3" class="mem-input" placeholder="式/定数">
+                    <button class="mem-save" onclick="saveMemory(3)">登録</button>
+                </div>
+                <div class="memory-row">
+                    <button class="mem-btn" onclick="insertMemory(4)">M4</button>
+                    <input type="text" id="m4" class="mem-input" placeholder="式/定数">
+                    <button class="mem-save" onclick="saveMemory(4)">登録</button>
+                </div>
+
+                <h3 style="margin:5px 0; font-size:1.1rem; color:#b3e5fc;">関数式（タップで入力）</h3>
+                <div class="formula-list">
+                    <button onclick="appendCalc('Math.sqrt(')">√ x (ルート)</button>
+                    <button onclick="appendCalc('**2')">x² (二乗)</button>
+                    <button onclick="appendCalc('Math.PI')">π (円周率)</button>
+                    <button onclick="appendCalc('Math.sin(')">sin x (正弦)</button>
+                    <button onclick="appendCalc('**2*Math.PI')">r² π(円面積)</button>
+                    <button onclick="appendCalc('*(180/Math.PI)')">x rad→x °(変換)</button>
+                    <button onclick="appendCalc('*2*Math.PI')">r ×2π(円周)</button>
+                    <button onclick="appendCalc('*(Math.PI/180)')">x °→x rad(変換)</button>
+                </div>
+
+                <h3 style="margin:12px 0 4px 0; font-size:1.1rem; color:#b3e5fc;">計算履歴</h3>
+                <div id="history-area"></div>
+                
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="btn-clear" style="flex: 1; padding: 12px; font-size: 1.1rem;" onclick="clearHistoryPrompt()">履歴消去</button>
+                    <button class="btn-save" style="flex: 2; padding: 12px; font-size: 1.1rem; margin-top: 0;" onclick="saveHistoryToFile()">履歴CSV保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab" onclick="switchTab('triangle')">直角三角形</div>
+        <div class="tab" onclick="switchTab('obelisk')">オベリスク</div>
+        <div class="tab" id="calcTab" onclick="switchTab('calculator', false)">関数電卓</div>
+    </div>
+
+    <div class="bottom-bar">
+        <span style="color:#ffeb3b; font-weight:bold; font-size:1.2rem;">計算ツール V1.02</span>
+        <label style="display:inline; color:#fff; font-size:1.1rem; cursor:pointer;">
+            <input type="checkbox" id="soundToggle" checked onchange="saveAllToLocalStorage()" style="transform: scale(1.3); vertical-align:middle; margin-right: 5px;"> 🔊 音＆バイブ
+        </label>
+    </div>
+
+    <div id="customModal">
+        <div class="modal-content">
+            <p id="modalMessage" style="font-size:1.2rem; color:#fff; margin-bottom:20px; line-height:1.5;"></p>
+            <div id="modalAlertBtn">
+                <button onclick="closeModal(true)" style="width:100%; background:#0288d1; color:#fff; padding:12px; font-size:1.2rem; border-radius:8px; border:none; font-weight:bold;">OK</button>
+            </div>
+            <div id="modalConfirmBtns" style="display:none; gap:10px;">
+                <button onclick="closeModal(false)" style="flex:1; background:#555; color:#fff; padding:12px; font-size:1.1rem; border-radius:8px; border:none; font-weight:bold;">キャンセル</button>
+                <button onclick="closeModal(true)" style="flex:1; background:#d32f2f; color:#fff; padding:12px; font-size:1.1rem; border-radius:8px; border:none; font-weight:bold;">消去する</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastCalcCursorPos = null;
+        let historyData = [];
+        let targetInputFieldId = null;
+        let audioCtx = null;
+        let activeTabId = 'triangle';
+        let confirmCallback = null;
+        
+        // 角度計測用変数
+        let isMeasuring = false;
+        let yawOffset = null; // nullで初期化
+        let currentMeasuredAngleDeg = 0;
+        let measureAxis = 'pitch'; // 'pitch': 前後(縦), 'roll': 左右(横)
+        let sensorEventFired = false;
+        let sensorCheckTimeout = null;
+
+        window.onload = function() {
+            loadAllFromLocalStorage();
+            
+            document.querySelectorAll('button, .tab').forEach(el => {
+                el.addEventListener('click', playBeepAndVibrate);
+            });
+            
+            document.querySelectorAll('input').forEach(el => {
+                el.addEventListener('input', () => { updateLabels(); saveAllToLocalStorage(); });
+            });
+
+            const slider = document.getElementById('calcSlider');
+            const indicator = document.querySelector('.swipe-indicator');
+            slider.addEventListener('scroll', () => {
+                let page = Math.round(slider.scrollLeft / slider.clientWidth) + 1;
+                indicator.innerText = `◀ 左右スワイプで ページ切替 (${page}/2) ▶`;
+            });
+        };
+
+        function showModal(msg, isConfirm = false, callback = null) {
+            document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('modalAlertBtn').style.display = isConfirm ? 'none' : 'block';
+            document.getElementById('modalConfirmBtns').style.display = isConfirm ? 'flex' : 'none';
+            document.getElementById('customModal').style.display = 'flex';
+            confirmCallback = callback;
         }
 
-        // 緑線の回転: rawRoll の符号を反映して左右どちらでも水平=0 に見えるようにする
-        const rot = rawRoll || 0;
-        hLine.style.transform = `translate(-50%,-50%) rotate(${rot}deg)`;
-
-        // グレー横線は常に横向き（補助線）
-        gLine.style.transform = `translate(-50%,-50%) rotate(0deg)`;
-        gLineV.style.transform = `translate(-50%,-50%) rotate(0deg)`;
-
-        // 線の長さを動的に調整して被りを避ける
-        // 水平付近では緑線を短く、グレー線を長くする
-        const hLen = Math.max(80, 220 - (200 * Math.exp(- (h*h) / 50 ))); // 80..220
-        const gLen = Math.max(120, 320 + (120 * Math.exp(- (h*h) / 200 ))); // 120..440
-        hLine.style.width = `${hLen}px`;
-        hLine.style.marginLeft = `${-hLen/2}px`;
-        gLine.style.width = `${gLen}px`;
-        gLine.style.marginLeft = `${-gLen/2}px`;
-
-        // ランドスケープ判定: rawRoll の絶対値が 45° を超えたら横向きとみなす
-        const isLandscape = Math.abs(rawRoll || 0) > 45;
-        if (isLandscape) {
-          gLineV.style.display = 'block';
-          // 縦線の長さをランドスケープ時に少し伸ばす
-          const vLen = Math.max(200, gLen);
-          gLineV.style.height = `${vLen}px`;
-          gLineV.style.marginTop = `${-vLen/2}px`;
-          gLine.style.opacity = 0.6;
-        } else {
-          gLineV.style.display = 'none';
-          gLine.style.opacity = 0.95;
+        function closeModal(result) {
+            document.getElementById('customModal').style.display = 'none';
+            if (confirmCallback) confirmCallback(result);
+            confirmCallback = null;
         }
-      }
 
-      // deviceorientation イベントハンドラ（既存のものと置き換える）
-      window.addEventListener('deviceorientation', function(ev){
-        // ev.beta: pitch (-180..180), ev.gamma: roll (-90..90)
-        const rawPitch = (typeof ev.beta === 'number') ? ev.beta : 0;
-        const rawRoll  = (typeof ev.gamma === 'number') ? ev.gamma : 0;
+        function playBeepAndVibrate() {
+            if (!document.getElementById('soundToggle').checked) return;
+            if (navigator.vibrate) navigator.vibrate(80);
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 1400;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch(e){}
+        }
 
-        // H/V を計算
-        const { horizontal: H, vertical: V } = computeHV(rawPitch, rawRoll);
+        function toCommaString(val) {
+            if (val === "" || isNaN(val) || val === null) return "";
+            let num = parseFloat(val);
+            return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+        }
 
-        // 更新
-        updateUI(H, V, rawRoll);
-      }, true);
+        function toDMS(dec) {
+            if (isNaN(dec) || dec === null || dec === "") return "";
+            let absDec = Math.abs(parseFloat(dec));
+            let d = Math.floor(absDec);
+            let minFloat = (absDec - d) * 60;
+            let m = Math.floor(minFloat);
+            let s = ((minFloat - m) * 60).toFixed(1);
+            let sign = dec < 0 ? "-" : "";
+            return `${sign}${d}度${m}分${s}秒`;
+        }
 
-      // 初期表示
-      updateUI(0, 90, 0);
-    })();
-  </script>
-  <!-- ORIENTATION-OVERLAY-END -->
+        function updateLabels() {
+            const ids = ['base', 'height', 'hypo', 'obe_a1', 'obe_b1', 'obe_a2', 'obe_b2', 'obe_h', 'obe_res'];
+            ids.forEach(id => {
+                let el = document.getElementById(id);
+                let lbl = document.getElementById(id + '_lbl');
+                if (el && lbl) lbl.innerText = el.value ? toCommaString(el.value) : "";
+            });
+
+            let angleEl = document.getElementById('angle');
+            let angleLbl = document.getElementById('angle_lbl');
+            let angleType = document.getElementById('angleType').value;
+
+            if (angleEl && angleLbl) {
+                let val = angleEl.value;
+                if (!val || isNaN(val)) {
+                    angleLbl.innerText = "";
+                } else {
+                    let formattedNum = toCommaString(val);
+                    if (angleType === 'deg') {
+                        angleLbl.innerText = `${formattedNum}° ＝ ${toDMS(val)}`;
+                    } else if (angleType === 'pct') {
+                        angleLbl.innerText = `${formattedNum} ％`;
+                    } else if (angleType === 'wari') {
+                        angleLbl.innerText = formattedNum;
+                    }
+                }
+            }
+        }
+
+        function switchTab(tabId, isFromTargetBtn = false, isInit = false) {
+            if (isMeasuring && tabId !== 'triangle') {
+                stopMeasurement();
+            }
+
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if(tabId === 'triangle') document.querySelector('.tab-container .tab:nth-child(1)').classList.add('active');
+            else if(tabId === 'obelisk') document.querySelector('.tab-container .tab:nth-child(2)').classList.add('active');
+            else document.getElementById('calcTab').classList.add('active');
+
+            const applyBtn = document.getElementById('btnApply');
+            if (tabId === 'calculator' && isFromTargetBtn) applyBtn.style.display = 'block';
+            else { applyBtn.style.display = 'none'; if(!isFromTargetBtn) targetInputFieldId = null; }
+
+            if(tabId === 'calculator' && isFromTargetBtn) {
+                document.getElementById('calcSlider').scrollLeft = 0;
+            }
+
+            activeTabId = tabId;
+            if(!isInit) saveAllToLocalStorage();
+        }
+
+        let originPanel = 'triangle';
+        function openCalcFor(inputId) {
+            targetInputFieldId = inputId;
+            originPanel = (inputId.startsWith('obe_')) ? 'obelisk' : 'triangle';
+            document.getElementById('calcDisplay').value = document.getElementById(inputId).value;
+            document.getElementById('calcDisplayFormat').innerText = toCommaString(document.getElementById(inputId).value);
+            lastCalcCursorPos = null; 
+            switchTab('calculator', true);
+        }
+
+        function applyToTargetPanel() {
+            if (targetInputFieldId) {
+                evalCalc();
+                let result = document.getElementById('calcDisplay').value;
+                if(result !== "Error" && result !== "") {
+                    document.getElementById(targetInputFieldId).value = result;
+                }
+                switchTab(originPanel);
+                updateLabels();
+                saveAllToLocalStorage();
+            }
+        }
+
+        function updateInputStates() {
+            const mode = document.getElementById('calcMode').value;
+            const fields = ['base', 'height', 'hypo', 'angle'];
+            let activeFields = [];
+            if (mode === 'bh') activeFields = ['base', 'height'];
+            if (mode === 'ba') activeFields = ['base', 'angle'];
+            if (mode === 'ha') activeFields = ['height', 'angle'];
+            if (mode === 'hy_a') activeFields = ['hypo', 'angle'];
+            if (mode === 'hy_b') activeFields = ['hypo', 'base'];
+            if (mode === 'hy_h') activeFields = ['hypo', 'height'];
+
+            fields.forEach(f => {
+                let el = document.getElementById(f);
+                if (activeFields.includes(f)) el.readOnly = false;
+                else { el.readOnly = true; el.value = ""; }
+            });
+            
+            if (isMeasuring && !activeFields.includes('angle')) {
+                stopMeasurement();
+            }
+            updateLabels();
+        }
+
+        function calculateTriangle() {
+            let b = parseFloat(document.getElementById('base').value);
+            let h = parseFloat(document.getElementById('height').value);
+            let hy = parseFloat(document.getElementById('hypo').value);
+            let a = parseFloat(document.getElementById('angle').value);
+            let aType = document.getElementById('angleType').value;
+            const mode = document.getElementById('calcMode').value;
+            let rad = null;
+
+            if (['ba', 'ha', 'hy_a'].includes(mode) && !isNaN(a)) {
+                if (aType === 'deg') rad = a * (Math.PI / 180);
+                if (aType === 'pct') rad = Math.atan(a / 100);
+                if (aType === 'wari') rad = (a === 0) ? Math.PI / 2 : Math.atan(1 / a);
+            }
+
+            if (mode === 'bh' && !isNaN(b) && !isNaN(h)) { hy = Math.hypot(b, h); rad = Math.atan2(h, b); }
+            else if (mode === 'ba' && !isNaN(b) && rad !== null) { h = b * Math.tan(rad); hy = b / Math.cos(rad); }
+            else if (mode === 'ha' && !isNaN(h) && rad !== null) { b = h / Math.tan(rad); hy = h / Math.sin(rad); }
+            else if (mode === 'hy_a' && !isNaN(hy) && rad !== null) { b = hy * Math.cos(rad); h = hy * Math.sin(rad); }
+            else if (mode === 'hy_b' && !isNaN(hy) && !isNaN(b)) { if(b >= hy) { showModal("底辺は斜辺より短くしてください"); return; } h = Math.sqrt(hy*hy - b*b); rad = Math.acos(b/hy); }
+            else if (mode === 'hy_h' && !isNaN(hy) && !isNaN(h)) { if(h >= hy) { showModal("高さを斜辺より短くしてください"); return; } b = Math.sqrt(hy*hy - h*h); rad = Math.asin(h/hy); }
+            else { showModal("指定された固定項目を入力してください。"); return; }
+
+            let deg = rad * (180 / Math.PI);
+            let pct = Math.tan(rad) * 100;
+            let wari = (h === 0) ? 999.9 : b / h;
+
+            let wariText = "";
+            if (h === 0 || wari > 99) {
+                wariText = "水平";
+            } else if (deg >= 89.9) {
+                wariText = "0割";
+            } else {
+                let wariInt = Math.floor(wari);
+                let buInt = Math.floor(Math.round((wari - wariInt) * 100) / 10);
+                if (wariInt > 0) wariText += wariInt + "割";
+                if (buInt > 0) wariText += buInt + "分";
+                if (wariText === "") wariText = "0割";
+            }
+
+            document.getElementById('base').value = b.toFixed(4);
+            document.getElementById('height').value = h.toFixed(4);
+            document.getElementById('hypo').value = hy.toFixed(4);
+
+            let historyAngleStr = "";
+
+            if (aType === 'deg') {
+                document.getElementById('angle').value = deg.toFixed(4);
+                historyAngleStr = `${deg.toFixed(2)}度 (${toDMS(deg)})`;
+            } else if (aType === 'pct') {
+                document.getElementById('angle').value = (deg >= 89.9) ? "999.9" : pct.toFixed(4);
+                historyAngleStr = (deg >= 89.9) ? "垂直(∞)" : `${pct.toFixed(2)}％`;
+            } else if (aType === 'wari') {
+                document.getElementById('angle').value = (deg >= 89.9) ? "0.0000" : wari.toFixed(4);
+                historyAngleStr = `${wari.toFixed(4)} (${wariText})`;
+            }
+
+            addHistory(`[三角形] 底辺:${toCommaString(b)}, 高さ:${toCommaString(h)}, 斜辺:${toCommaString(hy)}, 角度:${historyAngleStr}`);
+            updateLabels();
+            saveAllToLocalStorage();
+        }
+
+        function clearTriangle() {
+            ['base','height','hypo','angle'].forEach(id => document.getElementById(id).value = "");
+            updateLabels();
+            saveAllToLocalStorage();
+        }
+
+        function calculateObelisk() {
+            let a1 = parseFloat(document.getElementById('obe_a1').value);
+            let b1 = parseFloat(document.getElementById('obe_b1').value);
+            let a2 = parseFloat(document.getElementById('obe_a2').value);
+            let b2 = parseFloat(document.getElementById('obe_b2').value);
+            let h = parseFloat(document.getElementById('obe_h').value);
+
+            if(isNaN(a1) || isNaN(b1) || isNaN(a2) || isNaN(b2) || isNaN(h)) {
+                showModal("すべての項目に数値を入力してください。"); return;
+            }
+            let v = (h / 6) * (a1 * b1 + a2 * b2 + (a1 + a2) * (b1 + b2));
+            document.getElementById('obe_res').value = v.toFixed(4);
+            
+            addHistory(`[オベリスク] 上面:${a1}x${b1}, 下面:${a2}x${b2}, 高:${h} -> 体積:${toCommaString(v)}`);
+            updateLabels();
+            saveAllToLocalStorage();
+        }
+
+        function clearObelisk() {
+            ['obe_a1','obe_b1','obe_a2','obe_b2','obe_h','obe_res'].forEach(id => document.getElementById(id).value = "");
+            updateLabels();
+            saveAllToLocalStorage();
+        }
+
+        function appendCalc(val) {
+            const display = document.getElementById('calcDisplay');
+            const currentVal = display.value;
+            display.setAttribute('inputmode', 'none');
+            
+            let startPos, endPos;
+            if (lastCalcCursorPos === null) {
+                startPos = currentVal.length;
+                endPos = currentVal.length;
+            } else {
+                startPos = lastCalcCursorPos;
+                endPos = lastCalcCursorPos;
+            }
+            
+            display.value = currentVal.substring(0, startPos) + val + currentVal.substring(endPos, currentVal.length);
+            lastCalcCursorPos = startPos + val.length;
+            
+            display.focus();
+            setTimeout(() => { display.setSelectionRange(lastCalcCursorPos, lastCalcCursorPos); }, 10);
+            document.getElementById('calcDisplayFormat').innerText = "";
+        }
+
+        function clearCalc() { 
+            document.getElementById('calcDisplay').value = ""; 
+            document.getElementById('calcDisplayFormat').innerText = ""; 
+            lastCalcCursorPos = null; 
+        }
+
+        function backspaceCalc() { 
+            let str = document.getElementById('calcDisplay').value; 
+            document.getElementById('calcDisplay').value = str.slice(0, -1); 
+        }
+
+        function evalCalc() {
+            try {
+                let formula = document.getElementById('calcDisplay').value;
+                if(formula === "") return;
+
+                let openCount = (formula.match(/\(/g) || []).length;
+                let closeCount = (formula.match(/\)/g) || []).length;
+                if (openCount > closeCount) {
+                    let missing = openCount - closeCount;
+                    formula += ')'.repeat(missing);
+                    document.getElementById('calcDisplay').value = formula;
+                }
+
+                let result = eval(formula);
+                document.getElementById('calcDisplay').value = result;
+                document.getElementById('calcDisplayFormat').innerText = toCommaString(result);
+                addHistory(`[電卓] ${formula} = ${toCommaString(result)}`);
+                saveAllToLocalStorage();
+                lastCalcCursorPos = null; 
+            } catch (e) {
+                document.getElementById('calcDisplay').value = "Error";
+                setTimeout(clearCalc, 1000);
+            }
+        }
+
+        function saveMemory(num) {
+            let val = document.getElementById('calcDisplay').value;
+            if(val !== "" && val !== "Error") {
+                document.getElementById('m' + num).value = val;
+                saveAllToLocalStorage();
+            } else showModal("登録する値が電卓にありません");
+        }
+        
+        function insertMemory(num) {
+            let val = document.getElementById('m' + num).value;
+            if(val !== "") appendCalc(val);
+        }
+
+        function addHistory(text) {
+            let time = new Date().toLocaleTimeString();
+            let record = `[${time}] ${text}`;
+            historyData.push(record);
+            let displayArea = document.getElementById('history-area');
+            displayArea.innerHTML += `<div>${record}</div>`;
+            displayArea.scrollTop = displayArea.scrollHeight;
+        }
+
+        function clearHistoryPrompt() {
+            if(historyData.length === 0) { showModal("消去する履歴がありません"); return; }
+            showModal("履歴をすべて消去しますか？\n消去した履歴は復元できません。", true, function(result) {
+                if(result) {
+                    historyData = [];
+                    document.getElementById('history-area').innerHTML = '';
+                    saveAllToLocalStorage();
+                    showModal("履歴を消去しました");
+                }
+            });
+        }
+
+        function saveAllToLocalStorage() {
+            const data = {
+                currentTab: activeTabId,
+                triangle: { mode: document.getElementById('calcMode').value, base: document.getElementById('base').value, height: document.getElementById('height').value, hypo: document.getElementById('hypo').value, angle: document.getElementById('angle').value, angleType: document.getElementById('angleType').value },
+                obelisk: { a1: document.getElementById('obe_a1').value, b1: document.getElementById('obe_b1').value, a2: document.getElementById('obe_a2').value, b2: document.getElementById('obe_b2').value, h: document.getElementById('obe_h').value, res: document.getElementById('obe_res').value },
+                mem: { m1: document.getElementById('m1').value, m2: document.getElementById('m2').value, m3: document.getElementById('m3').value, m4: document.getElementById('m4').value },
+                sound: document.getElementById('soundToggle').checked,
+                history: historyData
+            };
+            localStorage.setItem('sokuryo_swipe_data', JSON.stringify(data));
+        }
+
+        function loadAllFromLocalStorage() {
+            const raw = localStorage.getItem('sokuryo_swipe_data');
+            if (!raw) { updateInputStates(); switchTab('triangle', false, true); return; }
+            try {
+                const data = JSON.parse(raw);
+                if(data.triangle) {
+                    document.getElementById('calcMode').value = data.triangle.mode || 'bh';
+                    document.getElementById('base').value = data.triangle.base || '';
+                    document.getElementById('height').value = data.triangle.height || '';
+                    document.getElementById('hypo').value = data.triangle.hypo || '';
+                    document.getElementById('angle').value = data.triangle.angle || '';
+                    document.getElementById('angleType').value = data.triangle.angleType || 'deg';
+                }
+                if(data.obelisk) {
+                    document.getElementById('obe_a1').value = data.obelisk.a1 || '';
+                    document.getElementById('obe_b1').value = data.obelisk.b1 || '';
+                    document.getElementById('obe_a2').value = data.obelisk.a2 || '';
+                    document.getElementById('obe_b2').value = data.obelisk.b2 || '';
+                    document.getElementById('obe_h').value = data.obelisk.h || '';
+                    document.getElementById('obe_res').value = data.obelisk.res || '';
+                }
+                if(data.mem) {
+                    document.getElementById('m1').value = data.mem.m1 || '';
+                    document.getElementById('m2').value = data.mem.m2 || '';
+                    document.getElementById('m3').value = data.mem.m3 || '';
+                    document.getElementById('m4').value = data.mem.m4 || '';
+                }
+                if(data.sound !== undefined) document.getElementById('soundToggle').checked = data.sound;
+                if(data.history) {
+                    historyData = data.history;
+                    let displayArea = document.getElementById('history-area');
+                    displayArea.innerHTML = '';
+                    historyData.forEach(row => displayArea.innerHTML += `<div>${row}</div>`);
+                    displayArea.scrollTop = displayArea.scrollHeight;
+                }
+                
+                updateInputStates();
+                updateLabels();
+                if(data.currentTab) {
+                    switchTab(data.currentTab, false, true);
+                } else {
+                    switchTab('triangle', false, true);
+                }
+            } catch(e) {}
+        }
+
+        function saveHistoryToFile() {
+            if(historyData.length === 0) { showModal("保存する履歴がありません"); return; }
+            let csvContent = "\uFEFF時間,ログ\n";
+            historyData.forEach(row => {
+                let firstBracketEnd = row.indexOf("] ");
+                if (firstBracketEnd !== -1) {
+                    let timePart = row.substring(0, firstBracketEnd + 1); 
+                    let textPart = row.substring(firstBracketEnd + 2);    
+                    textPart = textPart.replace(/"/g, '""');
+                    csvContent += `${timePart},"${textPart}"\n`;
+                } else {
+                    let textPart = row.replace(/"/g, '""');
+                    csvContent += `,"${textPart}"\n`;
+                }
+            });
+
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            let dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
+            a.href = url;
+            a.download = `sokuryo_history_${dateStr}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // --- 角度計測（ジャイロセンサー）ロジック ---
+        function toggleAngleMeasurement() {
+            playBeepAndVibrate();
+            if (isMeasuring) {
+                stopMeasurement();
+                return;
+            }
+
+            const mode = document.getElementById('calcMode').value;
+            if (!['ba', 'ha', 'hy_a'].includes(mode)) {
+                showModal("現在の計算モードでは角度を入力できません。\n「勾配固定」を含むモードを選択してください。");
+                return;
+            }
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            startMeasurement();
+                        } else {
+                            showModal("センサーへのアクセスが拒否されました。\n端末の設定をご確認ください。");
+                        }
+                    })
+                    .catch(e => {
+                        console.error(e);
+                        startMeasurement(); 
+                    });
+            } else {
+                startMeasurement(); 
+            }
+        }
+
+function toggleMeasureAxis() {
+            playBeepAndVibrate();
+            let btn = document.getElementById('btnAxisToggle');
+            let label = document.getElementById('measureModeLabel');
+            
+            // モード切替時にオフセットを一旦リセット
+            yawOffset = null; 
+            
+            if (measureAxis === 'pitch') {
+                measureAxis = 'roll';
+                label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">左右(横)</b> 傾き';
+                btn.innerText = '🔄 回転(水平)モードに切替';
+            } else if (measureAxis === 'roll') {
+                measureAxis = 'yaw';
+                label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">回転(水平)</b> 向き';
+                btn.innerText = '🔄 前部(縦)モードに切替';
+            } else {
+                measureAxis = 'pitch';
+                label.innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
+                btn.innerText = '🔄 左右(横)モードに切替';
+            }
+            currentMeasuredAngleDeg = 0;
+            updateSensorDisplay(0);
+        }
+function startMeasurement() {
+            isMeasuring = true;
+            sensorEventFired = false;
+            
+            // 計測開始時にUI状態をリセット・同期（デフォルトは前後モード）
+            measureAxis = 'pitch';
+            document.getElementById('measureModeLabel').innerHTML = '📱 現在: <b style="font-size:1.1rem; color:#ffeb3b;">前後(縦)</b> 傾き';
+            document.getElementById('btnAxisToggle').innerText = '🔄 左右(横)モードに切替';
+
+            window.addEventListener('deviceorientation', handleOrientation);
+            
+            document.getElementById('sensorDisplay').style.display = 'block';
+            
+            let btnMeasure = document.getElementById('btnMeasureAngle');
+            btnMeasure.innerText = '計測停止';
+            btnMeasure.classList.add('active');
+
+            let calcBtn = document.getElementById('btnTriangleCalc');
+            calcBtn.innerText = '角度確定し計算';
+            calcBtn.classList.add('btn-confirm');
+            calcBtn.onclick = confirmMeasuredAngle;
+
+            sensorCheckTimeout = setTimeout(() => {
+                if (!sensorEventFired) {
+                    document.getElementById('sensDeg').innerText = "---";
+                    document.getElementById('sensDms').innerText = "センサー応答なし";
+                    showModal("センサーが応答しません。\nローカルファイル(file://)として開いているか、HTTPS環境でないためブラウザにブロックされています。\nWebサーバー(https://)にアップロードしてご利用ください。");
+                }
+            }, 1000);
+        }
+        function stopMeasurement() {
+            isMeasuring = false;
+            if (sensorCheckTimeout) clearTimeout(sensorCheckTimeout);
+            window.removeEventListener('deviceorientation', handleOrientation);
+            
+            document.getElementById('sensorDisplay').style.display = 'none';
+            
+            let btnMeasure = document.getElementById('btnMeasureAngle');
+            btnMeasure.innerText = '角度計測';
+            btnMeasure.classList.remove('active');
+
+            let calcBtn = document.getElementById('btnTriangleCalc');
+            calcBtn.innerText = '計 算';
+            calcBtn.classList.remove('btn-confirm');
+            calcBtn.onclick = calculateTriangle;
+        }
+
+    function handleOrientation(event) {
+            if (!isMeasuring) return;
+            sensorEventFired = true; 
+            
+            if (event.beta === null && event.gamma === null && event.alpha === null) {
+                document.getElementById('sensDeg').innerText = "---";
+                document.getElementById('sensDms').innerText = "セキュリティ制限";
+                return;
+            }
+
+            let theta = 0;
+            
+            if (measureAxis === 'pitch') {
+                // 前後(縦)モード：betaの絶対値
+                let b = Math.abs(event.beta || 0);
+                if (b > 90) b = 180 - b; 
+                theta = b;
+            } else if (measureAxis === 'roll') {
+                // 左右(横)モード：gammaの絶対値
+                let g = Math.abs(event.gamma || 0);
+                if (g > 90) g = 180 - g; 
+                theta = g;
+               } else if (measureAxis === 'yaw') {
+                // 初回だけオフセットを記録
+                if (yawOffset === null) {
+                    yawOffset = event.alpha || 0;
+                }
+                
+                // 現在のalphaと基準(yawOffset)の差分をとる
+                let diff = (event.alpha || 0) - yawOffset;
+                
+                // 差分がマイナスになった場合などを考慮して360度ループで正規化
+                if (diff < 0) diff += 360;
+                
+                // 他のモードと同様に0-90度へ折り返す
+                let a = Math.abs(diff % 180);
+                if (a > 90) a = 180 - a;
+                
+                theta = a;
+            }
+            
+            // 安全装置（エラー・マイナス値回避）
+            if (theta > 89.99) theta = 90;
+            if (theta < 0) theta = 0;
+            
+            currentMeasuredAngleDeg = theta;
+            updateSensorDisplay(theta);
+        }
+        
+        function updateSensorDisplay(theta) {
+            document.getElementById('sensDeg').innerText = theta.toFixed(2);
+            document.getElementById('sensDms').innerText = toDMS(theta);
+            
+            // 90度(垂直)に達した際のエラー・無限大ガード
+            if (theta >= 89.9) {
+                document.getElementById('sensPct').innerText = "∞";
+                document.getElementById('sensWari').innerText = "0.000 (0割)";
+                return;
+            }
+            
+            let pct = Math.tan(theta * Math.PI / 180) * 100;
+            document.getElementById('sensPct').innerText = pct.toFixed(2);
+            
+            if (theta < 0.1) {
+                document.getElementById('sensWari').innerText = "水平";
+            } else {
+                let wari = 1 / Math.tan(theta * Math.PI / 180);
+                wari = Math.abs(wari); 
+                
+                let wariInt = Math.floor(wari);
+                let buInt = Math.floor(Math.round((wari - wariInt) * 100) / 10);
+                let wariText = "";
+                if (wariInt > 0) wariText += wariInt + "割";
+                if (buInt > 0) wariText += buInt + "分";
+                if (wariText === "") wariText = "0割";
+                document.getElementById('sensWari').innerText = wari.toFixed(3) + " (" + wariText + ")";
+            }
+        }
+
+        function confirmMeasuredAngle() {
+            playBeepAndVibrate();
+            let aType = document.getElementById('angleType').value;
+            let finalValue = 0;
+            
+            if (currentMeasuredAngleDeg >= 89.9) {
+                if (aType === 'deg') finalValue = 90;
+                else if (aType === 'pct') {
+                    showModal("角度が垂直に近すぎるため、「％」では入力できません。");
+                    return;
+                }
+                else if (aType === 'wari') finalValue = 0;
+            } else {
+                if (aType === 'deg') {
+                    finalValue = currentMeasuredAngleDeg;
+                } else if (aType === 'pct') {
+                    finalValue = Math.tan(currentMeasuredAngleDeg * Math.PI / 180) * 100;
+                } else if (aType === 'wari') {
+                    if (currentMeasuredAngleDeg < 0.1) {
+                        showModal("角度が小さすぎる（水平に近い）ため、「割」では計算できません。");
+                        return;
+                    }
+                    finalValue = 1 / Math.tan(currentMeasuredAngleDeg * Math.PI / 180);
+                }
+            }
+            
+            document.getElementById('angle').value = finalValue.toFixed(4);
+            updateLabels();      
+            stopMeasurement();   
+            calculateTriangle(); 
+        }
+    </script>
 </body>
 </html>
