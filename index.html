@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>計算ツール V1.03 (水平器統合版)</title>
+    <title>計算ツール V1.04 (水平器統合版)</title>
     <style>
         /* =========================================
            既存のスタイル
@@ -329,7 +329,7 @@
     </div>
 
     <div class="bottom-bar">
-        <span style="color:#ffeb3b; font-weight:bold; font-size:1.2rem;">計算ツール V1.03</span>
+        <span style="color:#ffeb3b; font-weight:bold; font-size:1.2rem;">計算ツール V1.04</span>
         <label style="display:inline; color:#fff; font-size:1.1rem; cursor:pointer;">
             <input type="checkbox" id="soundToggle" checked onchange="saveAllToLocalStorage()" style="transform: scale(1.3); vertical-align:middle; margin-right: 5px;"> 🔊 音＆バイブ
         </label>
@@ -366,6 +366,18 @@
         let isUprightState = false;
         let currentVisualRotation = 0;
 
+// 入力値のフォーマット（カンマ区切り等）をラベルに反映する関数
+        function updateLabels() {
+            const fields = ['base', 'height', 'hypo', 'angle', 'obe_a1', 'obe_b1', 'obe_a2', 'obe_b2', 'obe_h'];
+            fields.forEach(id => {
+                let el = document.getElementById(id);
+                let lbl = document.getElementById(id + '_lbl');
+                if (el && lbl) {
+                    lbl.innerText = toCommaString(el.value);
+                }
+            });
+        }
+        
         window.onload = function() {
             loadAllFromLocalStorage();
             
